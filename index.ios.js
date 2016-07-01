@@ -6,12 +6,11 @@ import {
   ListView,
   TextInput,
   TouchableHighlight,
+  Image,
  } from 'react-native'
 
 const Firebase = require('firebase');
 const config = {
-  // TODO your apiKey, authDomain, databaseURL and storageBucket
-  // you can find that under https://firebase.google.com/docs/web/setup#add_firebase_to_your_app
     apiKey: "AIzaSyD3t7eNBZgxEP9m7hQoK98VB-URzyxcXHk",
     authDomain: "understandai-ff322.firebaseapp.com",
     databaseURL: "https://understandai-ff322.firebaseio.com",
@@ -25,13 +24,16 @@ class Counter extends Component {
 
     // this.itemsRef = myFirebaseRef.child('items');
     this.itemsRef = firebase.database().ref('items/');
-
+    this.tasksRef = firebase.database().ref('tasks/');
+    this.currentTaskIndex = 0;
     this.state = {
+      currentTaskUrl: '',
       newTodo: '',
-      todoSource: new ListView.DataSource({rowHasChanged: (row1, row2) => row1 !== row2})
+      todoSource: new ListView.DataSource({rowHasChanged: (row1, row2) => row1 !== row2}),
     };
 
     this.items = [];
+    this.taskList = [{img_url: ''}];
   }
   componentDidMount() {
     // When a todo is added
@@ -43,14 +45,39 @@ class Counter extends Component {
         todoSource: this.state.todoSource.cloneWithRows(this.items)
       });
     });
+    this.tasksRef.on('child_added', (dataSnapshot) => {
+      img_url = dataSnapshot.val().img_url;
+      // console.warn('snapshot with url added' + img_url);
+      // add downloaded task to tasklist
+      this.taskList.push({
+        id: dataSnapshot.key,
+        img_url: img_url,
+      });
+      if (this.state.currentTaskUrl == '') {
+        this.setState({
+          currentTaskUrl: img_url
+        })
+      }
+    });
 
     // When a todo is removed
     this.itemsRef.on('child_removed', (dataSnapshot) => {
-        this.items = this.items.filter((x) => x.id !== dataSnapshot.key());
+        this.items = this.items.filter((x) => x.id !== dataSnapshot.key);
         this.setState({
           todoSource: this.state.todoSource.cloneWithRows(this.items)
         });
     });
+  }
+  nextTask() {
+    // console.warn(JSON.stringify(this.taskList));
+    this.currentTaskIndex += 1
+    this.setState({
+      // currentTaskIndex: this.state.currentTaskIndex + 1
+      currentTaskUrl: this.taskList[this.currentTaskIndex].img_url
+    });
+  }
+  imgLoadStart() {
+    console.warn("Image started loading");
   }
   addTodo() {
     if (this.state.newTodo !== '') {
@@ -99,24 +126,23 @@ class Counter extends Component {
   // }
   render() {
     return (
-      <View style={styles.appContainer}>
-        <View style={styles.titleView}>
-          <Text style={styles.titleText}>
-            My Todos
-          </Text>
-        </View>
-        <View style={styles.inputcontainer}>
-          <TextInput style={styles.input} onChangeText={(text) => this.setState({newTodo: text})} value={this.state.newTodo}/>
-          <TouchableHighlight
+      <View>
+      <Text>{this.state.currentTaskUrl}</Text>
+      <Image
+      source={{uri: this.state.currentTaskUrl}}
+      // source={{uri: 'http://facebook.github.io/react/img/logo_og.png'}}
+       style={{width: 400, height: 300}}
+       resizeMode='contain'
+       onLoadStart={() => console.warn('loading started')}
+       onLoad={() => console.warn('loading successful')}
+       onLoadEnd={() => console.warn("loading endet (successful or not")}
+       />
+       <TouchableHighlight
             style={styles.button}
-            onPress={() => this.addTodo()}
+            onPress={() => this.nextTask()}
             underlayColor='#dddddd'>
-            <Text style={styles.btnText}>Add!</Text>
+            <Text style={styles.btnText}>Next!</Text>
           </TouchableHighlight>
-        </View>
-        <ListView
-          dataSource={this.state.todoSource}
-          renderRow={this.renderRow.bind(this)} />
       </View>
     );
   }
